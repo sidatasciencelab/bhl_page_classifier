@@ -1,0 +1,41 @@
+# /bin/sh
+# ----------------Parameters---------------------- #
+#$ -S /bin/sh
+#$ -pe mthread 2
+#$ -q sThM.q
+#$ -l mres=30G,h_data=15G,h_vmem=15G,himem
+#$ -cwd
+#$ -j y
+#$ -N rclone_convert_jp2
+#$ -o rclone_convert_logs/rclone_convert_$TASK_ID.log
+#
+# ----------------Modules------------------------- #
+#
+module load ~/modulefiles/miniconda
+source activate bhl_images
+module load tools/rclone
+#
+# ----------------Your Commands------------------- #
+#
+echo + `date` job $JOB_NAME started in $QUEUE with jobID=$JOB_ID on $HOSTNAME
+#
+# RClone download
+IA_PATH=`sed -n "${SGE_TASK_ID}p" si_paths_rest.txt`
+echo ${IA_PATH}
+echo ^ Rclone download started: `date +%s`
+rclone copy -v --stats-one-line ia_s3:${IA_PATH} si_rest/
+echo ^ Rclone download completed: `date +%s`
+#
+BASEFILE=`basename ${IA_PATH}`
+FILE_TO_CONVERT="si_rest/${BASEFILE}"
+echo ${FILE_TO_CONVERT}
+#
+echo ^ VIPS conversion started: `date +%s`
+export VIPS_CONCURRENCY=${NSLOTS}
+python convert_jp2.py -i ${FILE_TO_CONVERT} \
+                      -o si_thumbs \
+                      -s 1024 \
+                      --delete_jp2
+#
+echo ^ VIPS conversion completed: `date +%s`
+echo = `date` job $JOB_NAME done
